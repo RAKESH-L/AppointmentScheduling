@@ -18,7 +18,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter{
 		auth
 		.inMemoryAuthentication()
 		.passwordEncoder(getPasswordEncoder())
-		.withUser("rakesh@gmail.com").password(getPasswordEncoder().encode("rakesh@12")).authorities("STUDENT")
+		.withUser("rakeshlokesh2880@gmail.com").password(getPasswordEncoder().encode("rakesh@12")).authorities("STUDENT")
 		.and()
 		.withUser("harry@gmail.com").password(getPasswordEncoder().encode("harry@12")).authorities("ADMIN")
 		.and()
@@ -32,7 +32,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter{
 		.antMatchers(HttpMethod.GET,"/api/user/login").authenticated()
 		.antMatchers(HttpMethod.POST,"/api/course/add").hasAuthority("ADMIN")
 		.antMatchers(HttpMethod.GET,"/api/course/all").hasAuthority("ADMIN")
-		.antMatchers(HttpMethod.GET,"/api/course/trainer/all").hasAuthority("STUDENT")
+		.antMatchers(HttpMethod.GET,"/api/course/trainer/all").permitAll()
 		.antMatchers(HttpMethod.POST,"/api/slot/add/{id}").hasAuthority("ADMIN")
 		.antMatchers(HttpMethod.GET,"/api/slot/course/{cid}").hasAuthority("STUDENT")
 		.antMatchers(HttpMethod.GET,"/api/appointment/all").hasAuthority("STUDENT")

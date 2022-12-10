@@ -7,8 +7,11 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,6 +25,7 @@ import com.springrest.appointment.dto.AppointmentStatusResponseDto;
 import com.springrest.appointment.enums.StudentAppointmentStatus;
 import com.springrest.appointment.model.Appointment;
 import com.springrest.appointment.model.Course;
+
 import com.springrest.appointment.model.Slots;
 import com.springrest.appointment.model.Student;
 import com.springrest.appointment.model.Trainer;
@@ -46,13 +50,28 @@ public class AppointmentController {
 	@Autowired
 	private SlotRepository slotRepository;
 	
+	/*
+	 	this are DI to send a mail to user
+	 	JavaMailSender
+	 	@Value("${spring.mail.username}")
+	 */
+
+	@Autowired 
+	private JavaMailSender javaMailSender;
+		 
+	@Value("${spring.mail.username}") 
+    private String sender;
+	
+	
 	// Path: /api/appointment/add/{cid}
 	@PostMapping("/add/{cid}/{sid}")
 	public ResponseEntity<String> postAppointment(Principal principal,
 												@RequestBody Appointment appointment,
 												@PathVariable("cid") Long cid,
 												@PathVariable("sid") Long sid){
+		
 		String username = principal.getName();
+		
 		/* Fetch Student details */
 		Student student = studentRepository.getStudentByUsername(username);
 		
@@ -81,6 +100,29 @@ public class AppointmentController {
 		appointment.setStatus(StudentAppointmentStatus.PENDING);
 		
 		appointmentRepository.save(appointment);
+		
+		/*
+		 	Sending Confirmation mail to user
+		 	regarding Appointment Status
+		 */
+		// Creating a mail message
+		SimpleMailMessage mailMessage = new SimpleMailMessage();
+		
+		String msg = "Hi "+student.getName()+
+				" Your appointment with Trainer "+course.getTrainer().getName()+
+				" has been Booked with status "+StudentAppointmentStatus.PENDING+
+				" Futher details with Course Name "+course.getCourseName()+
+				" will be shared shortly"+
+				" Thank You";
+		// Setting up necessary details
+		mailMessage.setFrom(sender);
+		mailMessage.setTo(username);
+		mailMessage.setText(msg);
+		mailMessage.setSubject("Appointment Status of "+course.getCourseName());
+		
+		// Sending the mail
+		javaMailSender.send(mailMessage);
+		
 		return ResponseEntity.status(HttpStatus.OK).body("Appointment Posted Successfully");
 	}
 	
@@ -121,8 +163,10 @@ public class AppointmentController {
 	 	by Admin
 	 */
 	@PutMapping("/status/{status}/{id}") 
-	public ResponseEntity<String> AppointmentStatusUpdate(@PathVariable("status") String status,
+	public ResponseEntity<String> AppointmentStatusUpdate(
+															@PathVariable("status") String status,
 														  @PathVariable("id") Long appointmentId){
+		
 		/* Convert status to Enum*/
 		StudentAppointmentStatus statusUpdate=null;
 		try {
@@ -144,6 +188,39 @@ public class AppointmentController {
 		
 		/*Save the appointment */
 		appointmentRepository.save(appointment);
+		
+		/*
+	 	Sending Confirmation mail to user
+	 	regarding Appointment Status
+		 */
+		// Creating a mail message
+		SimpleMailMessage mailMessage = new SimpleMailMessage();
+		
+		String username = appointment.getStudent().getUser().getUsername();
+//		Course course = new Course();
+//		Slots slots = new Slots();
+		if(statusUpdate.toString() == "APPROVED") {
+			mailMessage.setText("Hi "+appointment.getStudent().getName()+
+					" Your Appointment with Course "+appointment.getCourse().getCourseName()+
+					" has been '"+StudentAppointmentStatus.APPROVED+
+					"' Please Attend Demo Training Session on "+appointment.getSlots().getStartDate()+
+					" at '6 PM' For more details log in to our website");
+		}
+		if(statusUpdate.toString() == "DENIED") {
+			mailMessage.setText("Hi "+appointment.getStudent().getName()+
+					" Your Appointment with Course "+appointment.getCourse().getCourseName()+
+					" has been '"+StudentAppointmentStatus.DENIED+
+					" For more details log in to our website");
+		}
+		
+		// Setting up necessary details
+		mailMessage.setFrom(sender);
+		mailMessage.setTo(appointment.getStudent().getUser().getUsername());
+		
+		mailMessage.setSubject("Appointment Status of "+appointment.getCourse().getCourseName());
+		
+		// Sending the mail
+		javaMailSender.send(mailMessage);
 		
 		return ResponseEntity.status(HttpStatus.OK).body("Appointment Status Updated");
 	}
